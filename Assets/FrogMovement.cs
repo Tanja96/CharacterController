@@ -7,23 +7,28 @@ public class FrogMovement : MonoBehaviour
     private float horizontal;
     private float vertical;
     private bool jumpPressed;
-    private bool dashPresssed;
-    public bool isGrounded;
+    private bool isGrounded;
     private bool hittingRoof;
     private Transform cameraObject;
     private Collider[] results;
     private List<bool> groundCollidersValues;
+    private float acceptedDot;
     private Rigidbody rigi;
     private Collider ownCollider;
     private Vector3 velocity;
     private Vector3 targetPos;
     private Vector3 parentMovement;
+    private float lastDrag;
 
     public float speed;
     public float jumpHeight;
     public LayerMask ground;
     public Transform groundChecker;
+    public float maxGroundAngle;
     public float groundDistance;
+    public float dashDistance;
+    public float dashCoolDown;
+    public Vector3 drag;
 
     private void Start()
     {
@@ -32,32 +37,7 @@ public class FrogMovement : MonoBehaviour
         results = new Collider[5];
         cameraObject = Camera.main.transform;
         groundCollidersValues = new List<bool>();
-    }
-
-    void ComputePenetration()
-    {
-        int numOverlaps = Physics.OverlapBoxNonAlloc(targetPos, ownCollider.bounds.extents, results, rigi.rotation, ground, QueryTriggerInteraction.Ignore);
-        for (int i = 0; i < numOverlaps; i++)
-        {
-            if (Physics.ComputePenetration(ownCollider, targetPos, transform.rotation, results[i], results[i].transform.position, results[i].transform.rotation, out Vector3 direction, out float distance))
-            {
-                Vector3 penetrationVector = direction * distance;
-                targetPos += penetrationVector;
-            }
-        }
-    }
-
-    private void CheckRoof()
-    {
-        if (Physics.Raycast(targetPos, Vector3.up, out RaycastHit hit, 1.15f, ground, QueryTriggerInteraction.Ignore))
-        {
-            hittingRoof = true;
-            rigi.MovePosition(transform.position + Vector3.Project(targetPos - transform.position, Vector3.Cross(hit.normal, Vector3.up)));
-        }
-        else
-        {
-            hittingRoof = false;
-        }
+        acceptedDot = Vector3.Dot(new Vector3(0, 1, 0), new Vector3(0, Mathf.Cos(Mathf.Deg2Rad * maxGroundAngle), Mathf.Sin(Mathf.Deg2Rad * maxGroundAngle)));
     }
 
     private void FixedUpdate()
@@ -92,12 +72,6 @@ public class FrogMovement : MonoBehaviour
             jumpPressed = false;
         }
 
-        //dash
-        if(dashPresssed)
-        {
-            
-        }
-
         //Test move -> Roof check -> Collision check -> Real move
         targetPos = transform.position + movement + velocity * Time.deltaTime + parentMovement;
         
@@ -107,8 +81,47 @@ public class FrogMovement : MonoBehaviour
             ComputePenetration();
             rigi.MovePosition(targetPos);
         }
+
+        //adding drag
+        velocity.x *= 1 - drag.x * Time.deltaTime;
+        velocity.z *= 1 - drag.z * Time.deltaTime;
     }
 
+    /// <summary>
+    /// Prevents passing through objects
+    /// </summary>
+    void ComputePenetration()
+    {
+        int numOverlaps = Physics.OverlapBoxNonAlloc(targetPos, ownCollider.bounds.extents, results, rigi.rotation, ground, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < numOverlaps; i++)
+        {
+            if (Physics.ComputePenetration(ownCollider, targetPos, transform.rotation, results[i], results[i].transform.position, results[i].transform.rotation, out Vector3 direction, out float distance))
+            {
+                Vector3 penetrationVector = direction * distance;
+                targetPos += penetrationVector;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks for roofs
+    /// </summary>
+    private void CheckRoof()
+    {
+        if (Physics.Raycast(targetPos, Vector3.up, out RaycastHit hit, 1.15f, ground, QueryTriggerInteraction.Ignore))
+        {
+            hittingRoof = true;
+            rigi.MovePosition(transform.position + Vector3.Project(targetPos - transform.position, Vector3.Cross(hit.normal, Vector3.up)));
+        }
+        else
+        {
+            hittingRoof = false;
+        }
+    }
+
+    /// <summary>
+    /// Grounded true if one of the colliders hitting the trigger is accepted as ground
+    /// </summary>
     private void CheckGrounded()
     {
         foreach(bool value in groundCollidersValues)
@@ -126,11 +139,15 @@ public class FrogMovement : MonoBehaviour
         groundCollidersValues.Clear();
     }
 
+    /// <summary>
+    /// Adds bool to groundColliderValues according to ground angle.
+    /// </summary>
+    /// <param name="other"></param>
     private void OnTriggerStay(Collider other)
     {
         if (other.Raycast(new Ray(groundChecker.position, (other.transform.position - groundChecker.position).normalized), out RaycastHit hit, 1))
         {
-            if (Vector3.Dot(hit.normal, new Vector3(0, 1, 0)) <= 0.5f)
+            if (Vector3.Dot(hit.normal, new Vector3(0, 1, 0)) <= acceptedDot)
             {
                 groundCollidersValues.Add(false);
                 return;
@@ -151,7 +168,11 @@ public class FrogMovement : MonoBehaviour
 
     public void SetDash(bool press)
     {
-        dashPresssed = press;
+        if(press && Time.time - lastDrag > dashCoolDown)
+        {
+            velocity += Vector3.Scale(transform.forward, dashDistance * new Vector3(drag.x, 0, drag.z));
+            lastDrag = Time.time;
+        }
     }
 
     public void SetMovementAxis(float h, float v)
