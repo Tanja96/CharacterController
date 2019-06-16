@@ -34,6 +34,8 @@ public class CustomController : MonoBehaviour
     public float maxGroundAngle = 60f;
     public LayerMask ground;
     public Transform groundChecker;
+    public float roofTestDistance = 0.75f;
+    public float roofTestSphereRadius = 0.3f;
 
     private void Start()
     {
@@ -106,7 +108,8 @@ public class CustomController : MonoBehaviour
         {
             if (Physics.ComputePenetration(ownCollider, targetPos, transform.rotation, results[i], results[i].transform.position, results[i].transform.rotation, out Vector3 direction, out float distance))
             {
-                Vector3 penetrationVector = direction * distance;
+                Vector3 penetrationVector = direction * distance * 1.1f;
+                Debug.Log(results[i].transform.name + " " + penetrationVector);
                 targetPos += penetrationVector;
             }
         }
@@ -117,10 +120,21 @@ public class CustomController : MonoBehaviour
     /// </summary>
     private void CheckRoof()
     {
-        if (Physics.Raycast(targetPos, Vector3.up, out RaycastHit hit, 1.15f, ground, QueryTriggerInteraction.Ignore))
+        if (Physics.SphereCast(targetPos, roofTestSphereRadius, Vector3.up, out RaycastHit hit, roofTestDistance, ground, QueryTriggerInteraction.Ignore))
         {
             hittingRoof = true;
-            rigi.MovePosition(transform.position + Vector3.Project(targetPos - transform.position, Vector3.Cross(hit.normal, Vector3.up)));
+            Vector3 dir = targetPos - transform.position;
+            Vector3 cross = Vector3.Cross(hit.normal, Vector3.up);
+            if (velocity.y > 0 && targetPos.y >= hit.point.y - 1)
+            {
+                velocity.y = 0;
+                dir.y -= (targetPos.y - (hit.point.y - 1)) * 2;
+                rigi.MovePosition(transform.position + Vector3.Project(dir, cross) + new Vector3(0, dir.y, 0));
+            }
+            else
+            {
+                rigi.MovePosition(transform.position + Vector3.Project(dir, cross) + (Vector3.Project(velocity, cross) + new Vector3(0, velocity.y,0)) * Time.deltaTime);
+            }
         }
         else
         {
@@ -177,7 +191,7 @@ public class CustomController : MonoBehaviour
             jumpCount = 0;
         }
         jumpPressed = press;
-        if (jumpPressed && jumpCount < numberOfJumps)
+        if (jumpPressed && jumpCount < numberOfJumps && !hittingRoof)
         {
             velocity.y += Mathf.Sqrt(jumpHeight * -2f * Physics.gravity.y);
             jumpCount++;
