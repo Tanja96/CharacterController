@@ -19,13 +19,18 @@ public class FrogMovement : MonoBehaviour
     private Vector3 targetPos;
     private Vector3 parentMovement;
     private float lastDrag;
+    private int jumpCount;
+    private bool targetting;
 
     public float speed;
     public float jumpHeight;
+    public float fallMultiplier;
+    public float lowJumpMultiplier;
+    public int numberOfJumps;
     public LayerMask ground;
     public Transform groundChecker;
-    public float maxGroundAngle;
     public float groundDistance;
+    public float maxGroundAngle;
     public float dashDistance;
     public float dashCoolDown;
     public Vector3 drag;
@@ -51,7 +56,14 @@ public class FrogMovement : MonoBehaviour
         Vector3 movement = direction.normalized * Mathf.Min(direction.magnitude, 1) * Time.deltaTime * speed;
         if(movement != Vector3.zero)
         {
-            rigi.MoveRotation(Quaternion.LookRotation(movement));
+            if (targetting)
+            {
+                rigi.MoveRotation(Quaternion.LookRotation(forward, transform.up));
+            }
+            else
+            {
+                rigi.MoveRotation(Quaternion.LookRotation(movement));
+            }
         }
 
         //Adding gravity
@@ -60,16 +72,13 @@ public class FrogMovement : MonoBehaviour
         {
             velocity.y = 0;
         }
-        else if(velocity.y < 0)
+        else if (velocity.y < 0)
         {
-            velocity.y *= 1.05f;
+            velocity.y += Physics.gravity.y * (fallMultiplier - 1) * Time.deltaTime;
         }
-
-        //jumping
-        if(jumpPressed && isGrounded)
+        else if (velocity.y > 0 && !jumpPressed)
         {
-            velocity.y += Mathf.Sqrt(jumpHeight * -2f * Physics.gravity.y);
-            jumpPressed = false;
+            velocity.y += Physics.gravity.y * (lowJumpMultiplier - 1) * Time.deltaTime;
         }
 
         //Test move -> Roof check -> Collision check -> Real move
@@ -163,7 +172,16 @@ public class FrogMovement : MonoBehaviour
 
     public void SetJump(bool press)
     {
+        if(isGrounded)
+        {
+            jumpCount = 0;
+        }
         jumpPressed = press;
+        if (jumpPressed && jumpCount < numberOfJumps)
+        {
+            velocity.y += Mathf.Sqrt(jumpHeight * -2f * Physics.gravity.y);
+            jumpCount++;
+        }
     }
 
     public void SetDash(bool press)
@@ -184,5 +202,10 @@ public class FrogMovement : MonoBehaviour
     public void GiveParentVelocity(Vector3 v)
     {
         parentMovement = v;
+    }
+
+    public void SetTargetting(bool value)
+    {
+        targetting = value;
     }
 }
