@@ -22,18 +22,18 @@ public class FrogMovement : MonoBehaviour
     private int jumpCount;
     private bool targetting;
 
-    public float speed;
-    public float jumpHeight;
-    public float fallMultiplier;
-    public float lowJumpMultiplier;
-    public int numberOfJumps;
+    public float speed = 5f;
+    public int numberOfJumps = 1;
+    public float jumpHeight = 1.5f;
+    public float lowJumpMultiplier = 1.75f;
+    public float fallMultiplier = 1.5f;
+    public float dashDistance = 5f;
+    public float dashCoolDown = 0.4f;
+    public Vector3 drag = new Vector3(5f, 0f, 5f);
+    public float groundDistance = 0.49f;
+    public float maxGroundAngle = 60f;
     public LayerMask ground;
     public Transform groundChecker;
-    public float groundDistance;
-    public float maxGroundAngle;
-    public float dashDistance;
-    public float dashCoolDown;
-    public Vector3 drag;
 
     private void Start()
     {
@@ -99,7 +99,7 @@ public class FrogMovement : MonoBehaviour
     /// <summary>
     /// Prevents passing through objects
     /// </summary>
-    void ComputePenetration()
+    private void ComputePenetration()
     {
         int numOverlaps = Physics.OverlapBoxNonAlloc(targetPos, ownCollider.bounds.extents, results, rigi.rotation, ground, QueryTriggerInteraction.Ignore);
         for (int i = 0; i < numOverlaps; i++)
