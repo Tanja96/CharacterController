@@ -8,7 +8,7 @@ public class MovingCamera : MonoBehaviour
     Vector3 lastPos;
     private void Start()
     {
-        target = FindObjectOfType<FrogMovement>().transform;
+        target = FindObjectOfType<CustomController>().transform;
     }
     private void Update()
     {

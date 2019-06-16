@@ -4,10 +4,10 @@ using UnityEngine;
 
 public class InputManager : MonoBehaviour
 {
-    FrogMovement movement;
+    CustomController movement;
     private void Start()
     {
-        movement = FindObjectOfType<FrogMovement>();
+        movement = FindObjectOfType<CustomController>();
     }
 
     private void Update()

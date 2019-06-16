@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class FrogMovement : MonoBehaviour
+public class CustomController : MonoBehaviour
 {
     private float horizontal;
     private float vertical;

@@ -9,7 +9,7 @@ public class MovingPlatform : MonoBehaviour
     private Vector3 endPos;
     private Vector3 target;
     private Vector3 lastPos;
-    private FrogMovement child = null;
+    private CustomController child = null;
 
     public float speed;
     public Vector3 moveVector;
@@ -52,7 +52,7 @@ public class MovingPlatform : MonoBehaviour
     {
         if(other.CompareTag("Player"))
         {
-            child = other.GetComponent<FrogMovement>();
+            child = other.GetComponent<CustomController>();
             rigi.interpolation = RigidbodyInterpolation.Interpolate;
         }
     }
