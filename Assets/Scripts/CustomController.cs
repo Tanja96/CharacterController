@@ -8,7 +8,6 @@ public class CustomController : MonoBehaviour
     private float vertical;
     private bool jumpPressed;
     private bool isGrounded;
-    private bool hittingRoof;
     private Transform cameraObject;
     private Collider[] results;
     private List<bool> groundCollidersValues;
@@ -83,15 +82,10 @@ public class CustomController : MonoBehaviour
             velocity.y += Physics.gravity.y * (lowJumpMultiplier - 1) * Time.deltaTime;
         }
 
-        //Test move -> Roof check -> Collision check -> Real move
+        //Test move -> Collision check -> Real move
         targetPos = transform.position + movement + velocity * Time.deltaTime + parentMovement;
-        
-        CheckRoof();
-        if(!hittingRoof)
-        {
-            ComputePenetration();
-            rigi.MovePosition(targetPos);
-        }
+        ComputePenetration();
+        rigi.MovePosition(targetPos);
 
         //adding drag
         velocity.x *= 1 - drag.x * Time.deltaTime;
@@ -103,42 +97,26 @@ public class CustomController : MonoBehaviour
     /// </summary>
     private void ComputePenetration()
     {
+        //Get all colliders close by
         int numOverlaps = Physics.OverlapBoxNonAlloc(targetPos, ownCollider.bounds.extents, results, rigi.rotation, ground, QueryTriggerInteraction.Ignore);
         for (int i = 0; i < numOverlaps; i++)
         {
+            //Checks how much the controller should move so it doesn't go inside objects.
             if (Physics.ComputePenetration(ownCollider, targetPos, transform.rotation, results[i], results[i].transform.position, results[i].transform.rotation, out Vector3 direction, out float distance))
             {
-                Vector3 penetrationVector = direction * distance * 1.1f;
-                Debug.Log(results[i].transform.name + " " + penetrationVector);
+                Vector3 penetrationVector = direction * distance;
+                if (velocity.y > 0 && penetrationVector.y < -0.001) //when colliding with roofs
+                {
+                    velocity.y = 0;
+                }
+                else if (penetrationVector.y < -0.001 && isGrounded) //when object is pushed under ground
+                {
+                    float amount = penetrationVector.y;
+                    penetrationVector.y = 0;
+                    penetrationVector -= penetrationVector.normalized * amount;
+                }
                 targetPos += penetrationVector;
             }
-        }
-    }
-
-    /// <summary>
-    /// Checks for roofs
-    /// </summary>
-    private void CheckRoof()
-    {
-        if (Physics.SphereCast(targetPos, roofTestSphereRadius, Vector3.up, out RaycastHit hit, roofTestDistance, ground, QueryTriggerInteraction.Ignore))
-        {
-            hittingRoof = true;
-            Vector3 dir = targetPos - transform.position;
-            Vector3 cross = Vector3.Cross(hit.normal, Vector3.up);
-            if (velocity.y > 0 && targetPos.y >= hit.point.y - 1)
-            {
-                velocity.y = 0;
-                dir.y -= (targetPos.y - (hit.point.y - 1)) * 2;
-                rigi.MovePosition(transform.position + Vector3.Project(dir, cross) + new Vector3(0, dir.y, 0));
-            }
-            else
-            {
-                rigi.MovePosition(transform.position + Vector3.Project(dir, cross) + (Vector3.Project(velocity, cross) + new Vector3(0, velocity.y,0)) * Time.deltaTime);
-            }
-        }
-        else
-        {
-            hittingRoof = false;
         }
     }
 
@@ -147,16 +125,13 @@ public class CustomController : MonoBehaviour
     /// </summary>
     private void CheckGrounded()
     {
-        foreach(bool value in groundCollidersValues)
+        isGrounded = false;
+        foreach (bool value in groundCollidersValues)
         {
             if(value)
             {
                 isGrounded = true;
                 break;
-            }
-            else
-            {
-                isGrounded = false;
             }
         }
         groundCollidersValues.Clear();
@@ -179,11 +154,6 @@ public class CustomController : MonoBehaviour
         groundCollidersValues.Add(true);
     }
 
-    private void OnTriggerExit(Collider other)
-    {
-        isGrounded = false;
-    }
-
     public void SetJump(bool press)
     {
         if(isGrounded)
@@ -191,7 +161,7 @@ public class CustomController : MonoBehaviour
             jumpCount = 0;
         }
         jumpPressed = press;
-        if (jumpPressed && jumpCount < numberOfJumps && !hittingRoof)
+        if (jumpPressed && jumpCount < numberOfJumps)
         {
             velocity.y += Mathf.Sqrt(jumpHeight * -2f * Physics.gravity.y);
             jumpCount++;
