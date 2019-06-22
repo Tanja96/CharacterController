@@ -8,10 +8,11 @@ public class CustomController : MonoBehaviour
     private float vertical;
     private bool jumpPressed;
     private bool isGrounded;
+    private Vector3 groundNormal;
+    private float acceptedDot;
+    private RaycastHit[] hits;
     private Transform cameraObject;
     private Collider[] results;
-    private List<bool> groundCollidersValues;
-    private float acceptedDot;
     private Rigidbody rigi;
     private Collider ownCollider;
     private Vector3 velocity;
@@ -20,7 +21,7 @@ public class CustomController : MonoBehaviour
     private float lastDrag;
     private int jumpCount;
     private bool targetting;
-
+    
     public float speed = 5f;
     public int numberOfJumps = 1;
     public float jumpHeight = 1.5f;
@@ -31,30 +32,34 @@ public class CustomController : MonoBehaviour
     public Vector3 drag = new Vector3(5f, 0f, 5f);
     public float groundDistance = 0.49f;
     public float maxGroundAngle = 60f;
+    public float maxGroundAngleSpeed = 2f;
+    public float groundSphereRadius = 0.49f;
+    public float groundDist = 0.06f;
+    public bool moveAlongGround = true;
     public LayerMask ground;
     public Transform groundChecker;
-    public float roofTestDistance = 0.75f;
-    public float roofTestSphereRadius = 0.3f;
 
     private void Start()
     {
         rigi = GetComponent<Rigidbody>();
         ownCollider = GetComponent<Collider>();
         results = new Collider[5];
+        hits = new RaycastHit[5];
         cameraObject = Camera.main.transform;
-        groundCollidersValues = new List<bool>();
         acceptedDot = Vector3.Dot(new Vector3(0, 1, 0), new Vector3(0, Mathf.Cos(Mathf.Deg2Rad * maxGroundAngle), Mathf.Sin(Mathf.Deg2Rad * maxGroundAngle)));
     }
 
     private void FixedUpdate()
     {
-        CheckGrounded();
+        GroundCheck();
 
         //Movement from inputs
         Vector3 forward = new Vector3(cameraObject.forward.x, 0, cameraObject.forward.z).normalized;
         Vector3 right = new Vector3(cameraObject.right.x, 0, cameraObject.right.z).normalized;
         Vector3 direction = right * horizontal + forward * vertical;
         Vector3 movement = direction.normalized * Mathf.Min(direction.magnitude, 1) * Time.deltaTime * speed;
+
+        //Rotation
         if(movement != Vector3.zero)
         {
             if (targetting)
@@ -67,9 +72,25 @@ public class CustomController : MonoBehaviour
             }
         }
 
+        //Aligning movement with ground
+        if (moveAlongGround && groundNormal != new Vector3(0, 0, 0))
+        {
+            Vector3 cross = Vector3.Cross(transform.right, groundNormal);
+            direction = Vector3.RotateTowards(direction, cross, float.MaxValue, float.MaxValue).normalized * direction.magnitude;
+            if (cross.y > 0.001f)
+            {
+                float lerpValue = (Vector3.Dot(groundNormal, new Vector3(0, 1, 0)) - acceptedDot) / acceptedDot;
+                movement = direction.normalized * Mathf.Min(direction.magnitude, 1) * Time.deltaTime * Mathf.Lerp(maxGroundAngleSpeed, speed, lerpValue);
+            }
+            else
+            {
+                movement = direction.normalized * Mathf.Min(direction.magnitude, 1) * Time.deltaTime * speed;
+            }
+        }
+
         //Adding gravity
         velocity.y += Physics.gravity.y * Time.deltaTime;
-        if(isGrounded && velocity.y < 0)
+        if (isGrounded && velocity.y < 0)
         {
             velocity.y = 0;
         }
@@ -87,7 +108,7 @@ public class CustomController : MonoBehaviour
         ComputePenetration();
         rigi.MovePosition(targetPos);
 
-        //adding drag
+        //Adding drag
         velocity.x *= 1 - drag.x * Time.deltaTime;
         velocity.z *= 1 - drag.z * Time.deltaTime;
     }
@@ -121,37 +142,26 @@ public class CustomController : MonoBehaviour
     }
 
     /// <summary>
-    /// Grounded true if one of the colliders hitting the trigger is accepted as ground
+    /// Uses a sphereCast to determine if controller is grounded
     /// </summary>
-    private void CheckGrounded()
+    private void GroundCheck()
     {
+        int amount = Physics.SphereCastNonAlloc(groundChecker.position, groundSphereRadius, new Vector3(0, -1, 0), hits, groundDist, ground, QueryTriggerInteraction.Ignore);
         isGrounded = false;
-        foreach (bool value in groundCollidersValues)
+        groundNormal = new Vector3(0, 0, 0);
+        if (amount > 0)
         {
-            if(value)
+            for(int i = 0; i < amount; i++)
             {
-                isGrounded = true;
-                break;
+                //Checking if surface angle is accepted as ground
+                if(Vector3.Dot(hits[i].normal, new Vector3(0, 1, 0)) > acceptedDot)
+                {
+                    isGrounded = true;
+                    groundNormal = hits[i].normal;
+                    return;
+                }
             }
         }
-        groundCollidersValues.Clear();
-    }
-
-    /// <summary>
-    /// Adds bool to groundColliderValues according to ground angle.
-    /// </summary>
-    /// <param name="other"></param>
-    private void OnTriggerStay(Collider other)
-    {
-        if (other.Raycast(new Ray(groundChecker.position, (other.transform.position - groundChecker.position).normalized), out RaycastHit hit, 1))
-        {
-            if (Vector3.Dot(hit.normal, new Vector3(0, 1, 0)) <= acceptedDot)
-            {
-                groundCollidersValues.Add(false);
-                return;
-            }
-        }
-        groundCollidersValues.Add(true);
     }
 
     public void SetJump(bool press)
