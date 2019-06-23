@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody))]
 public class CustomController : MonoBehaviour
 {
     private float horizontal;
@@ -20,7 +21,6 @@ public class CustomController : MonoBehaviour
     private Vector3 parentMovement;
     private float lastDrag;
     private int jumpCount;
-    private bool targetting;
     
     public float speed = 5f;
     public int numberOfJumps = 1;
@@ -37,6 +37,7 @@ public class CustomController : MonoBehaviour
     public float groundDist = 0.06f;
     public bool moveAlongGround = true;
     public LayerMask ground;
+    public LayerMask collidable;
     public Transform groundChecker;
 
     private void Start()
@@ -62,14 +63,7 @@ public class CustomController : MonoBehaviour
         //Rotation
         if(movement != Vector3.zero)
         {
-            if (targetting)
-            {
-                rigi.MoveRotation(Quaternion.LookRotation(forward, transform.up));
-            }
-            else
-            {
-                rigi.MoveRotation(Quaternion.LookRotation(movement));
-            }
+            rigi.MoveRotation(Quaternion.LookRotation(movement));
         }
 
         //Aligning movement with ground
@@ -119,7 +113,7 @@ public class CustomController : MonoBehaviour
     private void ComputePenetration()
     {
         //Get all colliders close by
-        int numOverlaps = Physics.OverlapBoxNonAlloc(targetPos, ownCollider.bounds.extents, results, rigi.rotation, ground, QueryTriggerInteraction.Ignore);
+        int numOverlaps = Physics.OverlapBoxNonAlloc(targetPos, ownCollider.bounds.extents, results, rigi.rotation, collidable, QueryTriggerInteraction.Ignore);
         for (int i = 0; i < numOverlaps; i++)
         {
             //Checks how much the controller should move so it doesn't go inside objects.
@@ -196,10 +190,5 @@ public class CustomController : MonoBehaviour
     public void GiveParentVelocity(Vector3 v)
     {
         parentMovement = v;
-    }
-
-    public void SetTargetting(bool value)
-    {
-        targetting = value;
     }
 }

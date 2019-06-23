@@ -3098,6 +3098,9 @@ MonoBehaviour:
   ground:
     serializedVersion: 2
     m_Bits: 256
+  collidable:
+    serializedVersion: 2
+    m_Bits: 769
   groundChecker: {fileID: 422744188}
 --- !u!54 &1930992937
 Rigidbody:
