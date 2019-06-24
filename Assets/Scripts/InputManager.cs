@@ -4,7 +4,8 @@ using UnityEngine;
 
 public class InputManager : MonoBehaviour
 {
-    CustomController movement;
+    private CustomController movement;
+
     private void Start()
     {
         movement = FindObjectOfType<CustomController>();

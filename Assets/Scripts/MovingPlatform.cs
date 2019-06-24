@@ -10,11 +10,11 @@ public class MovingPlatform : MonoBehaviour
     private Vector3 target;
     private Vector3 lastPos;
     private CustomController child = null;
+    private Vector3 velocity;
 
     public float speed;
     public Vector3 moveVector;
-    public Vector3 velocity;
-
+    
     void Start()
     {
         rigi = GetComponent<Rigidbody>();
